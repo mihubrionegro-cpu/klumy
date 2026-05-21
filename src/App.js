@@ -18,7 +18,7 @@ const COUNTRIES = {
 
 // ─── Events ───────────────────────────────────────────────────────────────────
 const MOCK_EVENTS = [
-  { id: "evt1", name: "Founders Summit Medellín 2026", organizer: "Ruta N", country: "Colombia", city: "Medellín", date: "April 15, 2026", attendees: 450, sponsored: true, logo: "🚀", color: "#2e7d52 ", revenue: 5000 },
+  { id: "evt1", name: "Founders Summit Medellín 2026", organizer: "Ruta N", country: "Colombia", city: "Medellín", date: "April 15, 2026", attendees: 450, sponsored: true, logo: "🚀", color: "#2e7d52", revenue: 5000 },
   { id: "evt2", name: "LATAM Tech Connect", organizer: "Endeavor", country: "Mexico", city: "Mexico City", date: "May 20, 2026", attendees: 320, sponsored: true, logo: "⚡", color: "#6366f1", revenue: 3500 },
   { id: "evt3", name: "Milan Fashion Trade Expo", organizer: "Camera Moda Italia", country: "Italy", city: "Milan", date: "March 10, 2026", attendees: 280, sponsored: true, logo: "👜", color: "#ec4899", revenue: 4200 },
   { id: "evt4", name: "Coffee Chat at El Cielo", organizer: "User meetup", country: "Colombia", city: "Medellín", date: "Today", attendees: 2, sponsored: false, logo: "☕", color: "#7a746e", revenue: 0 },
@@ -41,8 +41,8 @@ const MOCK_CONEXIONES = { 7: [{ id: 11, event: "evt1" }, { id: 12, event: null }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const getInitials = (name) => name.split(" ").map(n => n[0]).join("").slice(0, 2);
-const sectorColor = { "Technology": "#2e7d52 ", "Fintech": "#6366f1", "Education": "#f59e0b", "Health": "#ef4444", "E-commerce": "#8b5cf6", "Fashion": "#ec4899" };
-const getColor = (s) => sectorColor[s] || "#2e7d52 ";
+const sectorColor = { "Technology": "#2e7d52", "Fintech": "#6366f1", "Education": "#f59e0b", "Health": "#ef4444", "E-commerce": "#8b5cf6", "Fashion": "#ec4899" };
+const getColor = (s) => sectorColor[s] || "#2e7d52";
 const getTrustLevel = (u) => {
   let s = 0;
   if (u.verified) s += 30;
@@ -53,7 +53,7 @@ const getTrustLevel = (u) => {
   return Math.round(s);
 };
 const getTrustBadge = (s) => {
-  if (s >= 80) return { label: "Top Rated", color: "#2e7d52 ", bg: "#d1fae5" };
+  if (s >= 80) return { label: "Top Rated", color: "#2e7d52", bg: "#d1fae5" };
   if (s >= 60) return { label: "Verified", color: "#ff6b5b", bg: "#ecfdf5" };
   if (s >= 40) return { label: "Established", color: "#6366f1", bg: "#ede9fe" };
   if (s >= 20) return { label: "New Member", color: "#f59e0b", bg: "#fef3c7" };
@@ -85,7 +85,8 @@ const css = `
   body { background: var(--bg); color: var(--text); }
   .display { font-family: 'Syne', sans-serif; }
   .nav { background: var(--surface); border-bottom: 1.5px solid var(--border); position: sticky; top: 0; z-index: 100; padding: 0 32px; height: 64px; display: flex; align-items: center; justify-content: space-between; }
-  .nav-logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 20px; cursor: pointer; letter-spacing: -0.5px; }
+  .nav-logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 22px; cursor: pointer; letter-spacing: -0.5px; display: flex; align-items: center; gap: 8px; color: var(--text); }
+  .nav-logo-text { color: var(--text); }
   .nav-links { display: flex; gap: 4px; }
   .nav-btn { background: none; border: none; cursor: pointer; padding: 8px 14px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; color: var(--muted); transition: all .18s; display: flex; align-items: center; gap: 6px; }
   .nav-btn:hover { background: var(--surface2); color: var(--text); }
@@ -214,6 +215,61 @@ const css = `
   .font-bold{font-weight:700}.font-semibold{font-weight:600}.font-medium{font-weight:500}
   .text-muted{color:var(--muted)}.text-green{color:var(--green)}.text-center{text-align:center}
   .w-full{width:100%}.flex-1{flex:1}.flex-wrap{flex-wrap:wrap}
+
+  /* ═══════════ RESPONSIVE MÓVIL ═══════════ */
+  /* Tablet y abajo */
+  @media (max-width: 768px) {
+    .nav { padding: 0 16px; height: 58px; }
+    .nav-logo { font-size: 19px; }
+    .nav-links { display: none; }  /* ocultamos links de texto en móvil, queda barra inferior */
+    .page { padding: 24px 16px 90px; }  /* padding-bottom para barra inferior */
+    .page-title { font-size: 26px; }
+    .page-sub { font-size: 15px; margin-bottom: 22px; }
+    .hero-title { font-size: clamp(38px, 12vw, 54px); }
+    .hero-sub { font-size: 16px; }
+    .hero { padding: 40px 20px; min-height: auto; }
+    .grid-2 { grid-template-columns: 1fr !important; }
+    .auth-card { max-width: 100%; }
+    .form-row { grid-template-columns: 1fr; }
+    .loc-bar { flex-direction: column; }
+    .loc-box { min-width: 100%; }
+    .msg-layout { grid-template-columns: 1fr; height: auto; }
+    .msg-sidebar { max-height: 180px; border-right: none; border-bottom: 1.5px solid var(--border); }
+    .msg-body { height: 440px; }
+    /* Explore: tarjeta y sidebar apilados */
+    .explore-grid { grid-template-columns: 1fr !important; }
+    .explore-sidebar { order: -1; }
+  }
+  /* Celular */
+  @media (max-width: 600px) {
+    .nav-right .signout-text { display: none; }  /* solo ícono de salir */
+    .nav-right .user-meta { display: none; }     /* ocultar nombre largo en nav */
+    .grid-3,.grid-4 { grid-template-columns: 1fr; }
+    .swipe-actions { padding: 14px 18px 22px; }
+    .swipe-header, .swipe-body { padding-left: 18px; padding-right: 18px; }
+    .modal { max-width: 100%; border-radius: 18px 18px 0 0; align-self: flex-end; }
+    .modal-backdrop { align-items: flex-end; padding: 0; }
+    .hero-stats { gap: 24px; flex-wrap: wrap; }
+    .btn { font-size: 15px; }
+    .qr-grid { width: 170px; height: 170px; }
+    .nav-logo-text { font-size: 18px; }
+  }
+  /* Barra de navegación inferior (solo móvil, estilo app) */
+  .bottom-nav { display: none; }
+  @media (max-width: 768px) {
+    .bottom-nav {
+      display: flex; position: fixed; bottom: 0; left: 0; right: 0; z-index: 90;
+      background: var(--surface); border-top: 1.5px solid var(--border);
+      padding: 8px 4px calc(8px + env(safe-area-inset-bottom)); justify-content: space-around;
+      box-shadow: 0 -2px 16px rgba(0,0,0,0.06);
+    }
+    .bottom-nav-btn {
+      background: none; border: none; cursor: pointer; display: flex; flex-direction: column;
+      align-items: center; gap: 3px; padding: 4px 12px; color: var(--muted);
+      font-family: 'DM Sans', sans-serif; font-size: 10px; font-weight: 600; flex: 1;
+    }
+    .bottom-nav-btn.active { color: var(--green); }
+  }
 `;
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
@@ -306,6 +362,16 @@ Respond ONLY with JSON, no markdown:
 };
 
 // ─── Nav ──────────────────────────────────────────────────────────────────────
+// ─── Klumy Logo (interlocking links) ──────────────────────────────────────────
+const KlumyLogo = ({ size = 30, dark = false }) => (
+  <svg width={size} height={size} viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+    <g transform="rotate(45 60 60)">
+      <rect x="20" y="38" width="56" height="44" rx="22" stroke={dark ? "#ffffff" : "#0a0a0a"} strokeWidth="13" fill="none" />
+      <rect x="44" y="38" width="56" height="44" rx="22" stroke="#ff6b5b" strokeWidth="13" fill="none" />
+    </g>
+  </svg>
+);
+
 const Nav = ({ page, setPage, user, setUser }) => {
   const links = user ? [
     { id: "dashboard", label: "Dashboard", icon: "dashboard" },
@@ -316,8 +382,9 @@ const Nav = ({ page, setPage, user, setUser }) => {
   return (
     <nav className="nav">
       <div className="flex items-center gap-4">
-        <span className="nav-logo display" onClick={() => setPage("home")} style={{ color: " #ff6b5b" }}>
-        Klu<span style={{ color: "#0a0a0a" }}>my</span>
+        <span className="nav-logo display" onClick={() => setPage("home")}>
+          <KlumyLogo size={30} />
+          <span className="nav-logo-text">Klumy</span>
         </span>
         <div className="nav-links">
           {links.map(l => (
@@ -331,7 +398,7 @@ const Nav = ({ page, setPage, user, setUser }) => {
         {user ? (
           <>
             <Av name={user.nombre} sector={user.sector} size={34} />
-            <div style={{ lineHeight: 1.3 }}>
+            <div className="user-meta" style={{ lineHeight: 1.3 }}>
               <div className="text-sm font-semibold flex items-center gap-1">
                 {user.nombre}
                 {user.verified && <Icon name="check" size={12} color="var(--green)" />}
@@ -339,7 +406,7 @@ const Nav = ({ page, setPage, user, setUser }) => {
               <div className="text-xs text-muted">{COUNTRIES[user.country]?.flag} {user.city}</div>
             </div>
             <button className="btn btn-ghost btn-sm" onClick={() => { setUser(null); setPage("home"); }}>
-              <Icon name="logout" size={14} /> Sign out
+              <Icon name="logout" size={14} /> <span className="signout-text">Sign out</span>
             </button>
           </>
         ) : (
@@ -382,7 +449,7 @@ const Login = ({ setPage, setUser, showToast }) => {
   const [pass, setPass] = useState("");
   const [err, setErr] = useState("");
   const handle = () => {
-    if (email === "admin@klumy.io" && pass === "admin") { setPage("admin"); return; }
+    if (email === "admin@klumy.app" && pass === "admin") { setPage("admin"); return; }
     const found = MOCK_USERS.find(u => u.email === email && u.password === pass);
     if (found) { setUser(found); setPage("explore"); showToast(`Welcome back, ${found.nombre.split(" ")[0]}! 👋`); }
     else setErr("Invalid email or password");
@@ -402,7 +469,7 @@ const Login = ({ setPage, setUser, showToast }) => {
         <div className="text-sm text-muted text-center">No account? <span style={{ color: "var(--green)", cursor: "pointer", fontWeight: 600 }} onClick={() => setPage("register")}>Sign up</span></div>
         <div className="text-xs text-muted text-center mt-3">
           User demo: <strong>valentina@sportco.co</strong> / <strong>1234</strong><br />
-          Admin: <strong>admin@klumy.io</strong> / <strong>admin</strong>
+          Admin: <strong>admin@klumy.app</strong> / <strong>admin</strong>
         </div>
       </div>
     </div>
@@ -608,7 +675,7 @@ const Explore = ({ user, connections, setConnections, showToast }) => {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 28, alignItems: "start" }}>
+      <div className="explore-grid" style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 28, alignItems: "start" }}>
         <div>
           {!current ? (
             <div className="card empty" style={{ border: "none" }}>
@@ -824,7 +891,7 @@ const Events = ({ user, connections, setConnections, showToast }) => {
 const Dashboard = ({ user, setPage, connections }) => {
   const trust = getTrustLevel(user);
   const stats = [
-    { label: "Connections", value: connections.length, icon: "users", color: "#2e7d52 ", bg: "#d1fae5" },
+    { label: "Connections", value: connections.length, icon: "users", color: "#2e7d52", bg: "#d1fae5" },
     { label: "Trust Score", value: trust, icon: "shield", color: "#ff6b5b", bg: "#ecfdf5" },
     { label: "Target Markets", value: (user.target_countries || []).length, icon: "globe", color: "#6366f1", bg: "#ede9fe" },
     { label: "Messages", value: 0, icon: "msg", color: "#3b82f6", bg: "#dbeafe" },
@@ -999,21 +1066,21 @@ const AdminPanel = ({ setPage }) => {
           <div className="admin-card">
             <div style={{ opacity: .7, fontSize: 12, letterSpacing: .5 }}>TOTAL USERS</div>
             <div className="admin-stat" style={{ fontSize: 36 }}>{totalUsers}</div>
-            <div className="text-xs" style={{ color: "#2e7d52 " }}>↑ Growing daily</div>
+            <div className="text-xs" style={{ color: "#2e7d52" }}>↑ Growing daily</div>
           </div>
           <div className="admin-card">
             <div style={{ opacity: .7, fontSize: 12, letterSpacing: .5 }}>VERIFIED USERS</div>
             <div className="admin-stat" style={{ fontSize: 36 }}>{verifiedUsers}</div>
-            <div className="text-xs" style={{ color: "#2e7d52 " }}>{Math.round(verifiedUsers / totalUsers * 100)}% of total</div>
+            <div className="text-xs" style={{ color: "#2e7d52" }}>{Math.round(verifiedUsers / totalUsers * 100)}% of total</div>
           </div>
           <div className="admin-card">
             <div style={{ opacity: .7, fontSize: 12, letterSpacing: .5 }}>SPONSORED EVENTS</div>
             <div className="admin-stat" style={{ fontSize: 36 }}>{totalEvents}</div>
-            <div className="text-xs" style={{ color: "#2e7d52 " }}>Active this month</div>
+            <div className="text-xs" style={{ color: "#2e7d52" }}>Active this month</div>
           </div>
           <div className="admin-card">
             <div style={{ opacity: .7, fontSize: 12, letterSpacing: .5 }}>TOTAL REVENUE</div>
-            <div className="admin-stat" style={{ fontSize: 36, color: "#2e7d52 " }}>${totalRevenue.toLocaleString()}</div>
+            <div className="admin-stat" style={{ fontSize: 36, color: "#2e7d52" }}>${totalRevenue.toLocaleString()}</div>
             <div className="text-xs" style={{ opacity: .7 }}>From event sponsors</div>
           </div>
         </div>
@@ -1043,7 +1110,7 @@ const AdminPanel = ({ setPage }) => {
                     <div className="text-xs" style={{ opacity: .7 }}>{count} active user{count !== 1 ? "s" : ""}</div>
                   </div>
                   <div style={{ flex: 1, background: "rgba(255,255,255,.1)", borderRadius: 8, height: 6, overflow: "hidden" }}>
-                    <div style={{ width: `${pct}%`, height: "100%", background: ready ? "#2e7d52 " : "#fbbf24", transition: "width .4s" }} />
+                    <div style={{ width: `${pct}%`, height: "100%", background: ready ? "#2e7d52" : "#fbbf24", transition: "width .4s" }} />
                   </div>
                   <div style={{ minWidth: 90, textAlign: "right", fontSize: 12, opacity: .7 }}>{count}/100</div>
                   {ready ? (
@@ -1084,6 +1151,26 @@ const AdminPanel = ({ setPage }) => {
 };
 
 // ─── App ──────────────────────────────────────────────────────────────────────
+// ─── Bottom Nav (mobile app-style) ────────────────────────────────────────────
+const BottomNav = ({ page, setPage }) => {
+  const links = [
+    { id: "dashboard", label: "Home", icon: "dashboard" },
+    { id: "explore", label: "Explore", icon: "globe" },
+    { id: "events", label: "Events", icon: "calendar" },
+    { id: "messages", label: "Chats", icon: "msg" },
+  ];
+  return (
+    <div className="bottom-nav">
+      {links.map(l => (
+        <button key={l.id} className={`bottom-nav-btn ${page === l.id ? "active" : ""}`} onClick={() => setPage(l.id)}>
+          <Icon name={l.icon} size={20} />
+          {l.label}
+        </button>
+      ))}
+    </div>
+  );
+};
+
 export default function App() {
   document.title = "Klumy";
   const [page, setPage] = useState("home");
@@ -1117,6 +1204,7 @@ export default function App() {
       {page === "events" && user && <Events user={user} connections={connections} setConnections={setConnections} showToast={showToast} />}
       {page === "messages" && user && <Messages user={user} connections={connections} />}
       {page === "admin" && <AdminPanel setPage={setPage} />}
+      {user && page !== "admin" && page !== "home" && <BottomNav page={page} setPage={go} />}
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
     </>
   );
