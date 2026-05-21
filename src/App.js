@@ -136,7 +136,7 @@ const css = `
   .hero-stats { display: flex; gap: 40px; justify-content: center; margin-top: 60px; padding-top: 40px; border-top: 1.5px solid var(--border); }
   .stat-num { font-family: 'Syne', sans-serif; font-size: 36px; font-weight: 800; }
   .stat-label { color: var(--muted); font-size: 14px; margin-top: 2px; }
-  .auth-wrap { min-height: calc(100vh - 64px); display: flex; align-items: flex-start; justify-content: center; padding: 40px 24px; }
+  .auth-wrap { min-height: calc(100vh - 64px); display: flex; align-items: flex-start; justify-content: center; padding: 32px 16px; }
   .auth-card { width: 100%; max-width: 560px; }
   .auth-title { font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 800; margin-bottom: 6px; }
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
@@ -229,7 +229,9 @@ const css = `
     .hero-sub { font-size: 16px; }
     .hero { padding: 40px 20px; min-height: auto; }
     .grid-2 { grid-template-columns: 1fr !important; }
-    .auth-card { max-width: 100%; }
+    .auth-card { max-width: 100% !important; }
+    .auth-card.card { padding: 24px 18px; }
+    .auth-title { font-size: 24px; }
     .form-row { grid-template-columns: 1fr; }
     .loc-bar { flex-direction: column; }
     .loc-box { min-width: 100%; }
@@ -319,15 +321,50 @@ const Av = ({ name, sector, size = 36, verified = false }) => (
 );
 
 const QRPattern = ({ seed = "user" }) => {
-  const cells = [];
+  // QR decorativo en SVG (proporción fija, nunca se desborda)
+  const N = 21;          // módulos por lado
+  const M = 14;          // tamaño de cada módulo en px
+  const size = N * M;    // tamaño total
   let s = 0;
-  for (let i = 0; i < seed.length; i++) s += seed.charCodeAt(i);
-  for (let i = 0; i < 144; i++) {
-    const corner = (i < 36 && (i % 12 < 3)) || (i < 36 && (i % 12 >= 9)) || (i >= 108 && (i % 12 < 3));
-    const fill = corner || ((i * s + i * 7) % 7 < 3);
-    cells.push(<div key={i} className={`qr-cell ${fill ? "" : "empty"}`} />);
+  for (let i = 0; i < seed.length; i++) s += seed.charCodeAt(i) * (i + 1);
+  const rng = (i) => ((Math.sin(s + i * 12.9898) * 43758.5453) % 1 + 1) % 1;
+  const isFinder = (r, c) => {
+    const inBox = (br, bc) => r >= br && r < br + 7 && c >= bc && c < bc + 7;
+    const ring = (br, bc) => (r === br || r === br + 6 || c === bc || c === bc + 6);
+    const core = (br, bc) => r >= br + 2 && r <= br + 4 && c >= bc + 2 && c <= bc + 4;
+    for (const [br, bc] of [[0,0],[0,N-7],[N-7,0]]) {
+      if (inBox(br, bc)) return ring(br, bc) || core(br, bc);
+    }
+    return null;
+  };
+  const rects = [];
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
+      const f = isFinder(r, c);
+      let fill;
+      if (f !== null) fill = f;
+      else {
+        // dejar libre la zona central para el logo
+        const center = r >= 8 && r <= 12 && c >= 8 && c <= 12;
+        fill = center ? false : rng(r * N + c) > 0.55;
+      }
+      if (fill) rects.push(<rect key={r + "-" + c} x={c * M} y={r * M} width={M} height={M} rx="2" fill="#0a0a0a" />);
+    }
   }
-  return <div className="qr-grid">{cells}</div>;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ display: "block", maxWidth: "100%", height: "auto" }} xmlns="http://www.w3.org/2000/svg">
+      <rect width={size} height={size} fill="#ffffff" />
+      {rects}
+      {/* logo de eslabones en el centro */}
+      <g transform={`translate(${size/2 - 26}, ${size/2 - 26}) scale(0.43)`}>
+        <rect x="-6" y="-6" width="132" height="132" rx="20" fill="#ffffff" />
+        <g transform="rotate(45 60 60)">
+          <rect x="20" y="38" width="56" height="44" rx="22" stroke="#0a0a0a" strokeWidth="13" fill="none" />
+          <rect x="44" y="38" width="56" height="44" rx="22" stroke="#ff6b5b" strokeWidth="13" fill="none" />
+        </g>
+      </g>
+    </svg>
+  );
 };
 
 // ─── AI ───────────────────────────────────────────────────────────────────────
@@ -478,18 +515,33 @@ const Login = ({ setPage, setUser, showToast }) => {
 
 // ─── Register ─────────────────────────────────────────────────────────────────
 const Register = ({ setPage, setUser, showToast }) => {
-  const [step, setStep] = useState(1);
-  const [form, setForm] = useState({
+  const DRAFT_KEY = "klumy_register_draft";
+  const defaultForm = {
     nombre: "", empresa: "", sector: "Technology", country: "Colombia", city: "Medellín",
     etapa: "Idea", email: "", password: "", descripcion: "",
     que_busca: "", que_ofrece: "", skills: "", target_countries: [], linkedin: ""
-  });
+  };
+  // Recuperar borrador guardado (si volviste de LinkedIn, etc.)
+  const loadDraft = () => {
+    try {
+      const saved = sessionStorage.getItem(DRAFT_KEY);
+      if (saved) return { ...defaultForm, ...JSON.parse(saved) };
+    } catch (e) {}
+    return defaultForm;
+  };
+  const [step, setStep] = useState(1);
+  const [form, setForm] = useState(loadDraft);
+  // Guardar borrador automáticamente cada vez que cambia el formulario
+  useEffect(() => {
+    try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(form)); } catch (e) {}
+  }, [form]);
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
   const toggleTarget = (c) => setForm(p => ({ ...p, target_countries: p.target_countries.includes(c) ? p.target_countries.filter(x => x !== c) : [...p.target_countries, c] }));
   const handle = () => {
     if (!form.nombre || !form.email || !form.empresa) { showToast("Please fill in required fields"); return; }
     const newUser = { ...form, id: Date.now(), skills: form.skills.split(",").map(s => s.trim()).filter(Boolean), verified: !!form.linkedin, deals_completed: 0, total_connections: 0, rating: 0, reviews: 0, member_since: "2026" };
     MOCK_USERS.push(newUser);
+    try { sessionStorage.removeItem(DRAFT_KEY); } catch (e) {}
     setUser(newUser);
     setPage("explore");
     showToast(`Welcome to Klumy, ${newUser.nombre.split(" ")[0]}! 🚀`);
@@ -779,7 +831,15 @@ const Events = ({ user, connections, setConnections, showToast }) => {
   const [showQR, setShowQR] = useState(false);
   const [scanModal, setScanModal] = useState(false);
 
-  const joinEvent = (evt) => { setActiveEvent(evt); showToast(`✓ You're now active at ${evt.name}.`); };
+  const joinEvent = (evt) => {
+    setActiveEvent(evt);
+    showToast(`✓ Activo en ${evt.name}. Comparte tu QR para conectar.`);
+    // Subir al tope para ver el banner del evento y abrir el QR automáticamente
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      setShowQR(true);
+    }, 150);
+  };
   const simulateScan = (other) => {
     setScanModal(false);
     setConnections(prev => [...prev, { ...other, event: activeEvent?.id }]);
@@ -845,7 +905,7 @@ const Events = ({ user, connections, setConnections, showToast }) => {
         <div className="modal-backdrop" onClick={() => setShowQR(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <div><div className="font-bold display text-lg">Your QR Code</div><div className="text-xs text-muted">Show this to people you meet</div></div>
+              <div><div className="font-bold display text-lg">Your QR Code</div><div className="text-xs text-muted">Others scan this to connect with you</div></div>
               <button className="btn btn-ghost btn-icon" onClick={() => setShowQR(false)}><Icon name="x" size={16} /></button>
             </div>
             <div className="modal-body" style={{ textAlign: "center" }}>
@@ -863,7 +923,7 @@ const Events = ({ user, connections, setConnections, showToast }) => {
         <div className="modal-backdrop" onClick={() => setScanModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <div><div className="font-bold display text-lg">Scan QR</div><div className="text-xs text-muted">Tap any attendee to simulate scan</div></div>
+              <div><div className="font-bold display text-lg">Connect with attendees</div><div className="text-xs text-muted">Tap a person to connect instantly</div></div>
               <button className="btn btn-ghost btn-icon" onClick={() => setScanModal(false)}><Icon name="x" size={16} /></button>
             </div>
             <div className="modal-body">
@@ -1197,8 +1257,8 @@ export default function App() {
       <style>{css}</style>
       {page !== "admin" && <Nav page={page} setPage={go} user={user} setUser={handleSetUser} />}
       {page === "home" && <Home setPage={go} />}
-      {page === "login" && <Login setPage={go} setUser={handleSetUser} showToast={showToast} />}
-      {page === "register" && <Register setPage={go} setUser={handleSetUser} showToast={showToast} />}
+      {page === "login" && <Login setPage={setPage} setUser={handleSetUser} showToast={showToast} />}
+      {page === "register" && <Register setPage={setPage} setUser={handleSetUser} showToast={showToast} />}
       {page === "dashboard" && user && <Dashboard user={user} setPage={go} connections={connections} />}
       {page === "explore" && user && <Explore user={user} connections={connections} setConnections={setConnections} showToast={showToast} />}
       {page === "events" && user && <Events user={user} connections={connections} setConnections={setConnections} showToast={showToast} />}
