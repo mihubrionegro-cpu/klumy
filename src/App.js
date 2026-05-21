@@ -383,8 +383,8 @@ Looking for: ${candidate.que_busca || "Not specified"}
 Offering: ${candidate.que_ofrece || "Not specified"}
 Target markets: ${(candidate.target_countries || []).join(", ")}
 
-Respond ONLY with JSON, no markdown:
-{"score":<0-100>,"reason":"<2-3 sentences>","synergy":"<short phrase>","recommendation":"<connect or pass>"}`;
+Responde SOLO con JSON en español, sin markdown. El campo "reason" debe explicar claramente POR QUÉ encajan estos dos emprendedores (2-3 frases concretas sobre mercados, qué busca uno y ofrece el otro, complementariedad):
+{"score":<0-100>,"reason":"<por qué encajan, en español>","synergy":"<frase corta>","recommendation":"<connect o pass>"}`;
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -394,8 +394,55 @@ Respond ONLY with JSON, no markdown:
     const text = data.content?.[0]?.text || "{}";
     return JSON.parse(text.replace(/```json|```/g, "").trim());
   } catch (e) {
-    return { score: 65, reason: "These entrepreneurs show complementary profiles.", synergy: "Potential Partners", recommendation: "connect" };
+    return smartFallbackMatch(user, candidate);
   }
+};
+
+// Cálculo de match basado en datos reales (cuando la IA no responde)
+const smartFallbackMatch = (user, candidate) => {
+  let score = 45;
+  const reasons = [];
+  const uTargets = user.target_countries || [];
+  const cTargets = candidate.target_countries || [];
+  // ¿El candidato está en un mercado que el usuario quiere?
+  if (uTargets.includes(candidate.country)) {
+    score += 18;
+    reasons.push(`${candidate.nombre.split(" ")[0]} opera en ${candidate.country}, uno de tus mercados objetivo`);
+  }
+  // ¿El usuario está en un mercado que el candidato busca?
+  if (cTargets.includes(user.country)) {
+    score += 12;
+    reasons.push(`busca expandirse a ${user.country}, donde tú estás`);
+  }
+  // Mercados objetivo en común
+  const sharedTargets = uTargets.filter(t => cTargets.includes(t));
+  if (sharedTargets.length > 0) {
+    score += 8;
+    reasons.push(`comparten interés en ${sharedTargets.slice(0, 2).join(" y ")}`);
+  }
+  // Complementariedad sector
+  if (candidate.sector !== user.sector) {
+    score += 6;
+    reasons.push(`sus sectores (${user.sector} y ${candidate.sector}) se complementan`);
+  } else {
+    score += 4;
+  }
+  // Confianza del candidato
+  if (candidate.verified) score += 5;
+  if ((candidate.deals_completed || 0) > 10) {
+    score += 6;
+    reasons.push(`tiene ${candidate.deals_completed} negocios cerrados`);
+  }
+  score = Math.min(94, Math.max(40, score));
+  const reasonText = reasons.length > 0
+    ? "Encajan porque " + reasons.slice(0, 3).join("; ") + "."
+    : `Ambos son emprendedores con perfiles que pueden complementarse en ${candidate.sector}.`;
+  return {
+    score,
+    reason: reasonText,
+    synergy: sharedTargets.length > 0 || uTargets.includes(candidate.country) ? "Sinergia de mercado" : "Posibles aliados",
+    recommendation: score >= 60 ? "connect" : "pass"
+  };
 };
 
 // ─── Nav ──────────────────────────────────────────────────────────────────────
@@ -826,19 +873,15 @@ const Explore = ({ user, connections, setConnections, showToast }) => {
 };
 
 // ─── Events ───────────────────────────────────────────────────────────────────
-const Events = ({ user, connections, setConnections, showToast }) => {
+const Events = ({ user, connections, setConnections, showToast, setPage }) => {
   const [activeEvent, setActiveEvent] = useState(null);
   const [showQR, setShowQR] = useState(false);
   const [scanModal, setScanModal] = useState(false);
 
   const joinEvent = (evt) => {
     setActiveEvent(evt);
-    showToast(`✓ Activo en ${evt.name}. Comparte tu QR para conectar.`);
-    // Subir al tope para ver el banner del evento y abrir el QR automáticamente
-    setTimeout(() => {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-      setShowQR(true);
-    }, 150);
+    showToast(`✓ Estás en ${evt.name}. Mira quién está presente 👇`);
+    setTimeout(() => { window.scrollTo({ top: 0, behavior: "smooth" }); }, 150);
   };
   const simulateScan = (other) => {
     setScanModal(false);
@@ -847,7 +890,11 @@ const Events = ({ user, connections, setConnections, showToast }) => {
   };
 
   const attendees = activeEvent
-    ? MOCK_USERS.filter(u => u.id !== user.id && !connections.find(c => c.id === u.id) && (u.country === activeEvent.country || Math.random() > 0.4)).slice(0, 6)
+    ? MOCK_USERS
+        .filter(u => u.id !== user.id)
+        .map(u => ({ ...u, _m: smartFallbackMatch(user, u).score }))
+        .sort((a, b) => b._m - a._m)
+        .slice(0, 8)
     : [];
 
   return (
@@ -871,6 +918,59 @@ const Events = ({ user, connections, setConnections, showToast }) => {
               <button className="btn btn-outline btn-sm" style={{ background: "white", color: "var(--text)" }} onClick={() => setScanModal(true)}>📱 Scan QR</button>
               <button className="btn btn-ghost btn-sm" style={{ color: "white" }} onClick={() => setActiveEvent(null)}>Leave</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {activeEvent && (
+        <div className="mb-4">
+          <div className="flex justify-between items-center mb-3">
+            <div className="font-bold display text-lg">Personas en este evento</div>
+            <span className="badge badge-green">{attendees.length} presentes</span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {attendees.map((a, idx) => {
+              const isTop = idx < 2; // primeros 2 = destacados por IA
+              const fb = smartFallbackMatch(user, a);
+              return (
+                <div key={a.id} className="card" style={{ padding: 14, border: isTop ? "1.5px solid var(--green)" : "1.5px solid var(--border)" }}>
+                  <div className="flex items-center gap-3">
+                    <Av name={a.nombre} sector={a.sector} size={46} verified={a.verified} />
+                    <div className="flex-1" style={{ minWidth: 0 }}>
+                      <div className="font-semibold flex items-center gap-1">
+                        {a.nombre}
+                        {a.linkedin && <Icon name="linkedin" size={11} color="#0a66c2" />}
+                      </div>
+                      <div className="text-xs text-muted truncate">{a.empresa} · {COUNTRIES[a.country]?.flag} {a.city}</div>
+                    </div>
+                    {isTop && <span className="badge badge-green" style={{ fontSize: 10 }}>✦ {fb.score}% match</span>}
+                  </div>
+                  {isTop && (
+                    <div className="ai-box" style={{ marginTop: 10, marginBottom: 10 }}>
+                      <div className="ai-label"><Icon name="sparkles" size={11} color="var(--green)" /> POR QUÉ CONECTAR</div>
+                      <div className="ai-text">{fb.reason}</div>
+                    </div>
+                  )}
+                  <div className="flex gap-2 mt-2">
+                    <button className="btn btn-green btn-sm flex-1" style={{ justifyContent: "center" }} onClick={() => {
+                      if (!connections.find(c => c.id === a.id)) {
+                        setConnections(prev => [...prev, { ...a, event: activeEvent.id }]);
+                      }
+                      showToast(`💬 Chat abierto con ${a.nombre.split(" ")[0]}`);
+                      setPage("messages");
+                    }}><Icon name="msg" size={13} color="white" /> Escribir</button>
+                    <button className="btn btn-outline btn-sm flex-1" style={{ justifyContent: "center" }} onClick={() => {
+                      if (!connections.find(c => c.id === a.id)) {
+                        setConnections(prev => [...prev, { ...a, event: activeEvent.id }]);
+                        showToast(`✅ Conectaste con ${a.nombre.split(" ")[0]}`);
+                      } else {
+                        showToast(`Ya estás conectado con ${a.nombre.split(" ")[0]}`);
+                      }
+                    }}><Icon name="heart" size={13} /> Conectar</button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -1261,7 +1361,7 @@ export default function App() {
       {page === "register" && <Register setPage={setPage} setUser={handleSetUser} showToast={showToast} />}
       {page === "dashboard" && user && <Dashboard user={user} setPage={go} connections={connections} />}
       {page === "explore" && user && <Explore user={user} connections={connections} setConnections={setConnections} showToast={showToast} />}
-      {page === "events" && user && <Events user={user} connections={connections} setConnections={setConnections} showToast={showToast} />}
+      {page === "events" && user && <Events user={user} connections={connections} setConnections={setConnections} showToast={showToast} setPage={go} />}
       {page === "messages" && user && <Messages user={user} connections={connections} />}
       {page === "admin" && <AdminPanel setPage={setPage} />}
       {user && page !== "admin" && page !== "home" && <BottomNav page={page} setPage={go} />}
