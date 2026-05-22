@@ -272,6 +272,18 @@ const css = `
     }
     .bottom-nav-btn.active { color: var(--green); }
   }
+
+  /* ═══════════ PANTALLA DE MATCH (estilo Tinder) ═══════════ */
+  .match-overlay { position: fixed; inset: 0; z-index: 300; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; background: linear-gradient(160deg, #ff6b5b, #ff9080); animation: fadeIn .25s ease; }
+  .match-title { font-family: 'Syne', sans-serif; font-weight: 800; font-size: clamp(44px, 14vw, 76px); color: #fff; letter-spacing: -2px; margin-bottom: 6px; text-align: center; animation: matchPop .5s cubic-bezier(.2,1.4,.4,1); }
+  .match-sub { color: rgba(255,255,255,.95); font-size: 16px; text-align: center; margin-bottom: 24px; max-width: 320px; line-height: 1.5; }
+  .match-avatars { display: flex; align-items: center; justify-content: center; margin-bottom: 28px; }
+  .match-avatars .avatar { border: 4px solid #fff; box-shadow: 0 6px 24px rgba(0,0,0,.2); }
+  .match-avatars .avatar:nth-child(2) { margin-left: -18px; }
+  .match-actions { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 320px; }
+  .match-btn-primary { background: #fff; color: #ff6b5b; border: none; padding: 16px; border-radius: 14px; font-family: 'Syne', sans-serif; font-weight: 800; font-size: 16px; cursor: pointer; }
+  .match-btn-ghost { background: rgba(255,255,255,.2); color: #fff; border: none; padding: 14px; border-radius: 14px; font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 15px; cursor: pointer; }
+  @keyframes matchPop { 0% { transform: scale(.3); opacity: 0; } 60% { transform: scale(1.1); } 100% { transform: scale(1); opacity: 1; } }
 `;
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
@@ -317,6 +329,39 @@ const Av = ({ name, sector, size = 36, verified = false }) => (
         <Icon name="check" size={size * 0.16} color="white" />
       </div>
     )}
+  </div>
+);
+
+// ─── Match simulado (Opción A) ────────────────────────────────────────────────
+// Cuando das "me interesa", simula si la otra persona también te dio like.
+// Usa el score de compatibilidad: a más match, más probable que haya match mutuo.
+const rollMatch = (user, candidate) => {
+  const score = smartFallbackMatch(user, candidate).score;
+  // probabilidad basada en compatibilidad (entre 55% y 90%)
+  const prob = Math.min(0.9, 0.45 + score / 200);
+  return Math.random() < prob;
+};
+
+// ─── Pantalla "¡MATCH!" estilo Tinder ─────────────────────────────────────────
+const MatchScreen = ({ user, other, onMessage, onKeepBrowsing }) => (
+  <div className="match-overlay">
+    {/* Logo de eslabones grande en blanco — símbolo de conexión */}
+    <svg width="130" height="130" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" style={{ marginBottom: 8, animation: "matchPop .6s cubic-bezier(.2,1.4,.4,1)" }}>
+      <g transform="rotate(45 60 60)">
+        <rect x="20" y="38" width="56" height="44" rx="22" stroke="#ffffff" strokeWidth="14" fill="none" />
+        <rect x="44" y="38" width="56" height="44" rx="22" stroke="rgba(255,255,255,0.65)" strokeWidth="14" fill="none" />
+      </g>
+    </svg>
+    <div className="match-title">¡Match!</div>
+    <div className="match-sub">A ti y a {other.nombre.split(" ")[0]} les interesa conectar. ¡Ahora pueden escribirse!</div>
+    <div className="match-avatars">
+      <Av name={user.nombre} sector={user.sector} size={80} />
+      <Av name={other.nombre} sector={other.sector} size={80} />
+    </div>
+    <div className="match-actions">
+      <button className="match-btn-primary" onClick={onMessage}>Enviar mensaje a {other.nombre.split(" ")[0]} 💬</button>
+      <button className="match-btn-ghost" onClick={onKeepBrowsing}>Seguir explorando</button>
+    </div>
   </div>
 );
 
@@ -693,7 +738,7 @@ const TrustPanel = ({ user }) => {
 };
 
 // ─── Explore ──────────────────────────────────────────────────────────────────
-const Explore = ({ user, connections, setConnections, showToast }) => {
+const Explore = ({ user, connections, setConnections, showToast, setPage }) => {
   const [myCountry, setMyCountry] = useState(user?.country || "Colombia");
   const [myCity, setMyCity] = useState(user?.city || "Medellín");
   const [exploreCountry, setExploreCountry] = useState(user?.country || "Colombia");
@@ -704,6 +749,7 @@ const Explore = ({ user, connections, setConnections, showToast }) => {
   const [aiLoading, setAiLoading] = useState(false);
   const [swiping, setSwiping] = useState(null);
   const [history, setHistory] = useState([]);
+  const [matchedUser, setMatchedUser] = useState(null);
 
   useEffect(() => {
     const pool = MOCK_USERS.filter(u => {
@@ -726,19 +772,33 @@ const Explore = ({ user, connections, setConnections, showToast }) => {
   }, [current]);
 
   const doSwipe = (dir) => {
+    const target = current;
     setSwiping(dir);
     setTimeout(() => {
       if (dir === "right") {
-        setConnections(prev => [...prev, { ...current, event: null }]);
-        setHistory(h => [...h, { name: current.nombre, action: "connect" }]);
-        showToast(`✅ Connected with ${current.nombre}!`);
+        setHistory(h => [...h, { name: target.nombre, action: "like" }]);
+        // ¿match mutuo? (Opción A: simulado según compatibilidad)
+        if (rollMatch(user, target)) {
+          setMatchedUser(target);
+        } else {
+          showToast(`👍 Te interesa ${target.nombre.split(" ")[0]}. Si también le interesas, harán match.`);
+        }
       } else {
-        setHistory(h => [...h, { name: current.nombre, action: "pass" }]);
+        setHistory(h => [...h, { name: target.nombre, action: "pass" }]);
       }
       setSwiping(null);
       setAiAnalysis(null);
       setIdx(i => i + 1);
     }, 350);
+  };
+  // Cuando hay match: se conectan y se desbloquea el chat
+  const confirmMatch = (goToChat) => {
+    if (matchedUser && !connections.find(c => c.id === matchedUser.id)) {
+      setConnections(prev => [...prev, { ...matchedUser, event: null }]);
+    }
+    const m = matchedUser;
+    setMatchedUser(null);
+    if (goToChat) { showToast(`💬 Chat abierto con ${m.nombre.split(" ")[0]}`); setPage("messages"); }
   };
 
   const trust = current ? getTrustLevel(current) : 0;
@@ -746,6 +806,11 @@ const Explore = ({ user, connections, setConnections, showToast }) => {
 
   return (
     <div className="page">
+      {matchedUser && (
+        <MatchScreen user={user} other={matchedUser}
+          onMessage={() => confirmMatch(true)}
+          onKeepBrowsing={() => confirmMatch(false)} />
+      )}
       <div className="page-title display">Explore</div>
       <div className="page-sub">Discover entrepreneurs anywhere in the world — completely free during launch 🚀</div>
 
@@ -839,7 +904,7 @@ const Explore = ({ user, connections, setConnections, showToast }) => {
                 </div>
                 <div className="swipe-actions">
                   <button className="swipe-pass" onClick={() => doSwipe("left")}><Icon name="x" size={18} color="#ef4444" /> Pass</button>
-                  <button className="swipe-connect" onClick={() => doSwipe("right")}><Icon name="heart" size={18} color="white" /> Connect</button>
+                  <button className="swipe-connect" onClick={() => doSwipe("right")}><Icon name="heart" size={18} color="white" /> Me interesa</button>
                 </div>
               </div>
               <div className="text-center mt-3 text-xs text-muted">{candidates.length - idx - 1} more in {exploreCity}</div>
@@ -877,6 +942,22 @@ const Events = ({ user, connections, setConnections, showToast, setPage }) => {
   const [activeEvent, setActiveEvent] = useState(null);
   const [showQR, setShowQR] = useState(false);
   const [scanModal, setScanModal] = useState(false);
+  const [matchedUser, setMatchedUser] = useState(null);
+  const likePerson = (a) => {
+    if (rollMatch(user, a)) {
+      setMatchedUser(a);
+    } else {
+      showToast(`👍 Te interesa ${a.nombre.split(" ")[0]}. Si también le interesas, harán match.`);
+    }
+  };
+  const confirmMatch = (goToChat) => {
+    if (matchedUser && !connections.find(c => c.id === matchedUser.id)) {
+      setConnections(prev => [...prev, { ...matchedUser, event: activeEvent?.id || null }]);
+    }
+    const m = matchedUser;
+    setMatchedUser(null);
+    if (goToChat) { showToast(`💬 Chat abierto con ${m.nombre.split(" ")[0]}`); setPage("messages"); }
+  };
 
   const joinEvent = (evt) => {
     setActiveEvent(evt);
@@ -899,6 +980,11 @@ const Events = ({ user, connections, setConnections, showToast, setPage }) => {
 
   return (
     <div className="page">
+      {matchedUser && (
+        <MatchScreen user={user} other={matchedUser}
+          onMessage={() => confirmMatch(true)}
+          onKeepBrowsing={() => confirmMatch(false)} />
+      )}
       <div className="page-title display">Events</div>
       <div className="page-sub">Join events, share your QR, and connect instantly with people you meet in person</div>
 
@@ -952,21 +1038,15 @@ const Events = ({ user, connections, setConnections, showToast, setPage }) => {
                     </div>
                   )}
                   <div className="flex gap-2 mt-2">
-                    <button className="btn btn-green btn-sm flex-1" style={{ justifyContent: "center" }} onClick={() => {
-                      if (!connections.find(c => c.id === a.id)) {
-                        setConnections(prev => [...prev, { ...a, event: activeEvent.id }]);
-                      }
-                      showToast(`💬 Chat abierto con ${a.nombre.split(" ")[0]}`);
-                      setPage("messages");
-                    }}><Icon name="msg" size={13} color="white" /> Escribir</button>
-                    <button className="btn btn-outline btn-sm flex-1" style={{ justifyContent: "center" }} onClick={() => {
-                      if (!connections.find(c => c.id === a.id)) {
-                        setConnections(prev => [...prev, { ...a, event: activeEvent.id }]);
-                        showToast(`✅ Conectaste con ${a.nombre.split(" ")[0]}`);
-                      } else {
-                        showToast(`Ya estás conectado con ${a.nombre.split(" ")[0]}`);
-                      }
-                    }}><Icon name="heart" size={13} /> Conectar</button>
+                    {connections.find(c => c.id === a.id) ? (
+                      <button className="btn btn-green btn-sm flex-1" style={{ justifyContent: "center" }} onClick={() => { showToast(`💬 Chat con ${a.nombre.split(" ")[0]}`); setPage("messages"); }}>
+                        <Icon name="msg" size={13} color="white" /> Escribir
+                      </button>
+                    ) : (
+                      <button className="btn btn-green btn-sm flex-1" style={{ justifyContent: "center" }} onClick={() => likePerson(a)}>
+                        <Icon name="heart" size={13} color="white" /> Me interesa
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -1360,7 +1440,7 @@ export default function App() {
       {page === "login" && <Login setPage={setPage} setUser={handleSetUser} showToast={showToast} />}
       {page === "register" && <Register setPage={setPage} setUser={handleSetUser} showToast={showToast} />}
       {page === "dashboard" && user && <Dashboard user={user} setPage={go} connections={connections} />}
-      {page === "explore" && user && <Explore user={user} connections={connections} setConnections={setConnections} showToast={showToast} />}
+      {page === "explore" && user && <Explore user={user} connections={connections} setConnections={setConnections} showToast={showToast} setPage={go} />}
       {page === "events" && user && <Events user={user} connections={connections} setConnections={setConnections} showToast={showToast} setPage={go} />}
       {page === "messages" && user && <Messages user={user} connections={connections} />}
       {page === "admin" && <AdminPanel setPage={setPage} />}
